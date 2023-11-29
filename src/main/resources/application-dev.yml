@@ -1,0 +1,6 @@
+hayiz:
+  thread:
+    max-pool-size: 20
+  session-management:
+    base-url: http://localhost:9999/
+
