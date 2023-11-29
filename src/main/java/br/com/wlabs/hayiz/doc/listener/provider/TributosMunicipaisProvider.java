@@ -86,23 +86,31 @@ public class TributosMunicipaisProvider extends Provider {
                 .url("https://gestor.tributosmunicipais.com.br/redesim/prefeitura/" + context.getName() + "/views/publico/portaldocontribuinte/")
                 .method("GET", null)
                 .build();
-        client.newCall(request).execute();
+        try (Response response = client.newCall(request).execute()) {
+            if(!response.isSuccessful()) throw new Exception("Tente novamente.");
+        }
 
         request = new Request.Builder()
                 .url("https://gestor.tributosmunicipais.com.br/redesim/views/publico/portaldocontribuinte/publico/pessoajuridica/pessoajuridica.xhtml")
                 .method("GET", null)
                 .build();
-        client.newCall(request).execute();
+        try (Response response = client.newCall(request).execute()) {
+            if(!response.isSuccessful()) throw new Exception("Tente novamente.");
+        }
 
         request = new Request.Builder()
                 .url("https://gestor.tributosmunicipais.com.br/redesim/views/publico/prefWeb/modulos/mercantil/extratoDebitos/extratoDebito.xhtml")
                 .method("GET", null)
                 .build();
-        Response response = client.newCall(request).execute();
-        MediaType mediaType = response.body().contentType();
-        Document doc = Jsoup.parse(response.body().byteStream(), mediaType.charset().name(),
-                "https://gestor.tributosmunicipais.com.br");
-        fixDoc(doc, "https://gestor.tributosmunicipais.com.br");
+        Document doc;
+        try (Response response = client.newCall(request).execute()) {
+            if(!response.isSuccessful()) throw new Exception("Tente novamente.");
+
+            MediaType mediaType = response.body().contentType();
+            doc = Jsoup.parse(response.body().byteStream(), mediaType.charset().name(),
+                    "https://gestor.tributosmunicipais.com.br");
+            fixDoc(doc, "https://gestor.tributosmunicipais.com.br");
+        }
 
         Element painelPrincipalContentElement = doc.selectFirst("div[id=painelPrincipal_content]");
         if(Objects.isNull(painelPrincipalContentElement)) {
@@ -123,9 +131,12 @@ public class TributosMunicipaisProvider extends Provider {
                 .url(imagemCaptcha.attr("src"))
                 .method("GET", null)
                 .build();
-        response = client.newCall(request).execute();
+        String base64;
+        try (Response response = client.newCall(request).execute()) {
+            if(!response.isSuccessful()) throw new Exception("Tente novamente.");
 
-        String base64 = Base64.encodeBase64String(response.body().bytes());
+            base64 = Base64.encodeBase64String(response.body().bytes());
+        }
 
         Normal captcha = new Normal();
         captcha.setBase64(base64);
@@ -149,9 +160,13 @@ public class TributosMunicipaisProvider extends Provider {
                 .method("POST", HTMLUtil.mapToFormBody(formData).build())
                 .addHeader("Content-Type", "application/x-www-form-urlencoded")
                 .build();
-        response = client.newCall(request).execute();
-        doc = Jsoup.parse(response.body().byteStream(), mediaType.charset().name(),
-                "https://gestor.tributosmunicipais.com.br");
+        try (Response response = client.newCall(request).execute()) {
+            if(!response.isSuccessful()) throw new Exception("Tente novamente.");
+
+            MediaType mediaType = response.body().contentType();
+            doc = Jsoup.parse(response.body().byteStream(), mediaType.charset().name(),
+                    "https://gestor.tributosmunicipais.com.br");
+        }
 
         Element loginMsg = doc.selectFirst("update[id=loginMsg]");
         if(Objects.nonNull(loginMsg) && loginMsg.hasText()) {
@@ -172,13 +187,17 @@ public class TributosMunicipaisProvider extends Provider {
                 .url("https://gestor.tributosmunicipais.com.br/redesim/views/publico/prefWeb/modulos/mercantil/extratoDebitos/extratoDebito.xhtml")
                 .method("GET", null)
                 .build();
-        response = client.newCall(request).execute();
-        mediaType = response.body().contentType();
-        doc = Jsoup.parse(response.body().byteStream(), mediaType.charset().name(),
-                "https://gestor.tributosmunicipais.com.br");
-        fixDoc(doc, "https://gestor.tributosmunicipais.com.br");
+        InputStream inputStream;
+        try (Response response = client.newCall(request).execute()) {
+            if(!response.isSuccessful()) throw new Exception("Tente novamente.");
 
-        InputStream inputStream = IOUtils.toInputStream(doc.html(), mediaType.charset());
+            MediaType mediaType = response.body().contentType();
+            doc = Jsoup.parse(response.body().byteStream(), mediaType.charset().name(),
+                    "https://gestor.tributosmunicipais.com.br");
+            fixDoc(doc, "https://gestor.tributosmunicipais.com.br");
+            inputStream = IOUtils.toInputStream(doc.html(), mediaType.charset());
+        }
+
         InputStream inputStreamPDF = PdfService.htmlToPdf(inputStream);
         byte[] bytes = PdfService.signature(inputStreamPDF, keyEntry);
         StorageUtil.upload(key, bytes, "application/pdf");
@@ -229,45 +248,50 @@ public class TributosMunicipaisProvider extends Provider {
                                     .url("https://gestor.tributosmunicipais.com.br/redesim/views/publico/prefWeb/modulos/mercantil/extratoDebitos/extratoDebito.xhtml")
                                     .method("POST", HTMLUtil.mapToFormBody(formData).build())
                                     .build();
-                            response = client.newCall(request).execute();
-                            mediaType = response.body().contentType();
-                            if (!(mediaType.type().equalsIgnoreCase("application")
-                                    && mediaType.subtype().equalsIgnoreCase("pdf"))) {
-                                doc = Jsoup.parse(response.body().byteStream(), mediaType.charset().name(),
-                                        "https://www.tributosmunicipais.com.br");
-                                Element MsgErrorGlobal2 = doc.selectFirst("span[id=MsgErrorGlobal2]");
-                                if(Objects.nonNull(MsgErrorGlobal2) || MsgErrorGlobal2.hasText()) {
-                                    //continue;
+                            try (Response response = client.newCall(request).execute()) {
+                                if(!response.isSuccessful()) throw new Exception("Tente novamente.");
+                                
+                                MediaType mediaType = response.body().contentType();
+                                if (!(mediaType.type().equalsIgnoreCase("application")
+                                        && mediaType.subtype().equalsIgnoreCase("pdf"))) {
+                                    doc = Jsoup.parse(response.body().byteStream(), mediaType.charset().name(),
+                                            "https://www.tributosmunicipais.com.br");
+                                    Element MsgErrorGlobal2 = doc.selectFirst("span[id=MsgErrorGlobal2]");
+                                    if(Objects.nonNull(MsgErrorGlobal2) || MsgErrorGlobal2.hasText()) {
+                                        //continue;
+                                    }
+                                    throw new Exception("Tente novamente.");
                                 }
-                                throw new Exception("Tente novamente.");
+
+                                bytes = PdfService.signature(response.body().byteStream(), keyEntry);
+                                StorageUtil.upload(invoiceKey, bytes, "application/pdf");
+
+                                HashMap<String, Object> dataMessage = new HashMap<>();
+                                dataMessage.put("key", row.attr("data-rk") + "/" + tds.get(3).text());
+                                dataMessage.put("uf", message.getUf().name());
+                                dataMessage.put("workspaceCode", data.get("workspaceCode"));
+                                dataMessage.put("companyCode", document.get("companyCode").toString().replaceAll("[^0-9]", ""));
+                                dataMessage.put("municipalCode", document.get("municipalCode").toString().replaceAll("[^0-9]", ""));
+                                dataMessage.put("storageKey", invoiceKey);
+                                dataMessage.put("type", "DAM");
+                                dataMessage.put("message", tds.get(2).text());
+                                dataMessage.put("dueDate", LocalDate.parse(tds.get(5).text(), DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                                        .format(DateTimeFormatter.ISO_LOCAL_DATE));
+                                dataMessage.put("price", tds.get(10).text()
+                                        .replaceAll("[^0-9\\.\\,]", "")
+                                        .replaceAll("\\.", "")
+                                        .replaceAll("\\,", "\\."));
+
+                                HashMap<String, Object> dataHeader = new HashMap<>();
+                                dataHeader.put("id", UUID.randomUUID().toString());
+                                dataHeader.put("action", "Invoice");
+                                dataHeader.put("date", LocalDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME));
+                                dataHeader.put("data", dataMessage);
+
+                                SQSUtil.sendMessage(dataHeader, message.getId());
                             }
 
-                            bytes = PdfService.signature(response.body().byteStream(), keyEntry);
-                            StorageUtil.upload(invoiceKey, bytes, "application/pdf");
 
-                            HashMap<String, Object> dataMessage = new HashMap<>();
-                            dataMessage.put("key", row.attr("data-rk") + "/" + tds.get(3).text());
-                            dataMessage.put("uf", message.getUf().name());
-                            dataMessage.put("workspaceCode", data.get("workspaceCode"));
-                            dataMessage.put("companyCode", document.get("companyCode").toString().replaceAll("[^0-9]", ""));
-                            dataMessage.put("municipalCode", document.get("municipalCode").toString().replaceAll("[^0-9]", ""));
-                            dataMessage.put("storageKey", invoiceKey);
-                            dataMessage.put("type", "DAM");
-                            dataMessage.put("message", tds.get(2).text());
-                            dataMessage.put("dueDate", LocalDate.parse(tds.get(5).text(), DateTimeFormatter.ofPattern("dd/MM/yyyy"))
-                                    .format(DateTimeFormatter.ISO_LOCAL_DATE));
-                            dataMessage.put("price", tds.get(10).text()
-                                    .replaceAll("[^0-9\\.\\,]", "")
-                                    .replaceAll("\\.", "")
-                                    .replaceAll("\\,", "\\."));
-
-                            HashMap<String, Object> dataHeader = new HashMap<>();
-                            dataHeader.put("id", UUID.randomUUID().toString());
-                            dataHeader.put("action", "Invoice");
-                            dataHeader.put("date", LocalDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME));
-                            dataHeader.put("data", dataMessage);
-
-                            SQSUtil.sendMessage(dataHeader, message.getId());
                         } catch (Exception exception) {
                             exception.printStackTrace();
                         }
