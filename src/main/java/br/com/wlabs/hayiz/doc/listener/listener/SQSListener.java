@@ -32,7 +32,7 @@ public class SQSListener {
             }
         }
 
-        /*try {
+        try {
             String queueName = "hayiz-doc-importer-dev";
             DocumentRunnable runnable =
                     new DocumentRunnable(queueName, 5, this.amazonSQSAsync, this.objectMapper);
@@ -40,6 +40,6 @@ public class SQSListener {
             thread.start();
         } catch (Exception exception) {
             exception.printStackTrace();
-        }*/
+        }
     }
 }

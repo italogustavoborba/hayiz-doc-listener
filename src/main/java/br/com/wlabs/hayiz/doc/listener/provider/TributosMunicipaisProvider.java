@@ -40,7 +40,7 @@ public class TributosMunicipaisProvider extends Provider {
     protected enum CONTEXT {
         GRAVATA("gravata"),
         POMBOS("pombos"),
-        OROBO("orbo"),
+        OROBO("orobo"),
         PESQUEIRA("pesqueira"),
         FEIRA_NOVA("feiranova"),
         ILHA_DE_ITAMARACA("ilhadeitamaraca"),
@@ -316,7 +316,7 @@ public class TributosMunicipaisProvider extends Provider {
 
         return new OkHttpClient().newBuilder()
                 .readTimeout(60, TimeUnit.SECONDS)
-                .connectTimeout(60 / 2, TimeUnit.SECONDS)
+                .connectTimeout(60, TimeUnit.SECONDS)
                 .writeTimeout(60, TimeUnit.SECONDS)
                 .dispatcher(new Dispatcher(executor))
                 .cache(null)

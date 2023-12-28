@@ -29,13 +29,13 @@ public class CaruaruPernambucoProvider extends Provider {
         ExceptionCatchingExecutor executor = new ExceptionCatchingExecutor();
 
         return new OkHttpClient().newBuilder()
-                .readTimeout(60, TimeUnit.SECONDS)
-                .connectTimeout(60 / 2, TimeUnit.SECONDS)
-                .writeTimeout(60, TimeUnit.SECONDS)
+                .readTimeout(120, TimeUnit.SECONDS)
+                .connectTimeout(120, TimeUnit.SECONDS)
+                .writeTimeout(120, TimeUnit.SECONDS)
                 .dispatcher(new Dispatcher(executor))
                 .cache(null)
                 //.addNetworkInterceptor(logging)
-                .addInterceptor(this.delayInterceptor(1000L, TimeUnit.MILLISECONDS))
+                .addInterceptor(this.delayInterceptor(5000L, TimeUnit.MILLISECONDS))
                 .addInterceptor(this.defaultInterceptor())
                 .addInterceptor(this.retryInterceptor())
                 .cookieJar(cookieJar((allCookies)))

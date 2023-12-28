@@ -56,7 +56,8 @@ public class PdfService {
 
             ProcessBuilder processBuilder = new ProcessBuilder(executables.stream().findFirst().get().getAbsolutePath(),
                     "--headless",
-                    "--print-to-pdf-no-header",
+                    //"--print-to-pdf-no-header",
+                    "--no-pdf-header-footer",
                     "--disable-gpu",
                     "--landscape",
                     "--printBackground",

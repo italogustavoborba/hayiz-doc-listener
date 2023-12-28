@@ -88,8 +88,8 @@ public class DocumentRunnable implements Runnable {
         this.actions.put("014", new ExtratoDebitoBeloJardim());
         this.actions.put("015", new ExtratoDebitoRecife());
 
-        this.actions.put("016", new ExtratoDebitoOrobo());
-        this.actions.put("017", new ExtratoDebitoPesqueira());
+        this.actions.put("016", new ExtratoDebitoPesqueira());
+        this.actions.put("017", new ExtratoDebitoOrobo());
         this.actions.put("018", new ExtratoDebitoGravata());
         this.actions.put("019", new ExtratoDebitoPombos());
         this.actions.put("020", new ExtratoDebitoFeiraNova());
