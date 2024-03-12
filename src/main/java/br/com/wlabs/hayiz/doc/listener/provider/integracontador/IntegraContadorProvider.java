@@ -1,12 +1,15 @@
 package br.com.wlabs.hayiz.doc.listener.provider.integracontador;
 
 import br.com.wlabs.hayiz.doc.listener.exception.CertificateException;
+import br.com.wlabs.hayiz.doc.listener.exception.MessageException;
 import br.com.wlabs.hayiz.doc.listener.provider.Provider;
 import br.com.wlabs.hayiz.doc.listener.provider.integracontador.model.*;
 import br.com.wlabs.hayiz.doc.listener.util.HTTPUtil;
 import br.com.wlabs.hayiz.doc.listener.util.XmlUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
+import com.google.gson.internal.LinkedTreeMap;
+import com.itextpdf.layout.element.Link;
 import okhttp3.*;
 import okhttp3.logging.HttpLoggingInterceptor;
 import okhttp3.tls.HandshakeCertificates;
@@ -29,6 +32,7 @@ import java.security.KeyStore;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Objects;
@@ -137,12 +141,13 @@ public class IntegraContadorProvider extends Provider {
         String xmlSign = sw.toString();
 
         String data = "{\"xml\": \"" + Base64.encodeBase64String(xmlSign.getBytes()) + "\"}";
-        return buildRequisition(RequisitionType.Apoiar, client, accessToken, jwtToken, accountantCode, companyCode, data, "",
+        return buildRequisition(RequisitionType.Apoiar, client, accessToken, jwtToken, accountantCode, accountantName, companyCode, data, "",
                 "AUTENTICAPROCURADOR","ENVIOXMLASSINADO81", "2.0");
     }
 
     protected Response buildRequisition(RequisitionType requisitionType,
                                         OkHttpClient client, String accessToken, String jwtToken, String accountantCode,
+                                        String accountantName,
                                         String companyCode, String data, String autenticarProcuradorToken, String systemName,
                                         String serviceName, String version)
             throws Exception {
@@ -153,7 +158,7 @@ public class IntegraContadorProvider extends Provider {
         contratante.put("tipo", 2);
         requisition.put("contratante", contratante);
 
-        String tmp = accountantCode.split(":")[1];
+        String tmp = accountantName.split(":")[1];
         HashMap<String, Object> autorPedidoDados = new HashMap<>();
         //autorPedidoDados.put("numero", accountantCode);
         autorPedidoDados.put("numero", tmp);
@@ -184,7 +189,7 @@ public class IntegraContadorProvider extends Provider {
         return client.newCall(request).execute();
     }
 
-    protected static String processResponse(String key, final Response response) throws IOException {
+    protected static String processResponse(String key, final Response response) throws MessageException, IOException {
         HashMap<String, Object> hashMap = new HashMap();
         try {
             response.headers().toMultimap().forEach((k, values) -> {
@@ -209,6 +214,13 @@ public class IntegraContadorProvider extends Provider {
             if(Objects.nonNull(dados) && !dados.isEmpty()) {
                 HashMap<String, Object> map = mapper.readValue(dados, HashMap.class);
                 hashMap.putAll(map);
+            }
+        }
+
+        if(response.code() == 403) {
+            if(hashMap.containsKey("mensagens")) {
+                ArrayList mensagens = (ArrayList) hashMap.get("mensagens");
+                throw new MessageException(mensagens.toString());
             }
         }
 

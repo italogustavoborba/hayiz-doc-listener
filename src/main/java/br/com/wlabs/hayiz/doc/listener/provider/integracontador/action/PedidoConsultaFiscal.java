@@ -115,7 +115,7 @@ public class PedidoConsultaFiscal extends IntegraContadorProvider implements SQS
                     }
 
                     response = this.buildRequisition(RequisitionType.Apoiar, client, loginData.get("access_token"), loginData.get("jwt_token"),
-                            (String) data.get("certificateCode"),
+                            (String) data.get("certificateCode"), (String) data.get("certificateName"),
                             document.get("companyCode").toString().replaceAll("[^0-9]", ""), "",
                             autenticarProcuradorToken, "SITFIS","SOLICITARPROTOCOLO91", "2.0");
                     String protocoloRelatorio = processResponse("protocoloRelatorio", response);
@@ -127,7 +127,7 @@ public class PedidoConsultaFiscal extends IntegraContadorProvider implements SQS
 
                     String _data = "{ \"protocoloRelatorio\": \"" + protocoloRelatorio + "\" }";
                     response = this.buildRequisition(RequisitionType.Emitir, client, loginData.get("access_token"), loginData.get("jwt_token"),
-                            (String) data.get("certificateCode"),
+                            (String) data.get("certificateCode"), (String) data.get("certificateName"),
                             document.get("companyCode").toString().replaceAll("[^0-9]", ""), _data,
                             autenticarProcuradorToken, "SITFIS","RELATORIOSITFIS92", "2.0");
                     String pdf = processResponse("pdf", response);
@@ -175,6 +175,8 @@ public class PedidoConsultaFiscal extends IntegraContadorProvider implements SQS
                     SQSUtil.status(document.get("id").toString(), key, (isSuccess ? "DONE" : "FOUND_ISSUE"), null, message.getId());
                     acknowledgment.acknowledge();
 
+                } catch (MessageException exception) {
+                    SQSUtil.status(document.get("id").toString(), "", "FAIL", exception.getMessage(), message.getId());
                 } catch (Exception exception) {
                     errors.add(document);
                     //acknowledgment.acknowledge();
