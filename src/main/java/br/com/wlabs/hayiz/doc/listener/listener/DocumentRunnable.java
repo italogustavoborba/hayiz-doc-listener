@@ -77,7 +77,7 @@ public class DocumentRunnable implements Runnable {
         this.actions.put("003", new PRConsultarDadosEconomicosContribuinte());
         this.actions.put("004", new PREmitirExtratosContribuinteDAE());
         this.actions.put("005", new PREmitirExtratosContribuinteNaoCalculadas());
-        this.actions.put("006", new PedidoConsultaFiscal());
+
         this.actions.put("007", new RelatorioDevedor());
         this.actions.put("008", new ListarMensagem());
         this.actions.put("009", new PRConsultarIntimacaoContribuinteGMF());
@@ -106,6 +106,7 @@ public class DocumentRunnable implements Runnable {
         this.actions.put("031", new ExtratoDebitoBezerros());
         this.actions.put("032", new ExtratoDebitoArcoverde());
         this.actions.put("033", new ExtratoDebitoOuricuri());
+        this.actions.put("034", new PedidoConsultaFiscal());
 
         this.actions.put("DIAC", new PREmitirDIAC());
         this.actions.put("DAE10", new PREmitirDAEProcessoFiscal());

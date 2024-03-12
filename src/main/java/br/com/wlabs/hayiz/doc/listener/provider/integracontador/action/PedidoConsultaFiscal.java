@@ -73,10 +73,8 @@ public class PedidoConsultaFiscal extends IntegraContadorProvider implements SQS
                 }
             }
 
-            if(!data.containsKey("certificateName")) {
-                acknowledgment.acknowledge();
-                return;
-            }
+            int visibilityTimeout = 300;
+            SQSUtil.changeMessageVisibility(queueUrl, receiptHandle, visibilityTimeout);
 
             ClassPathResource classPathResource =
                     new ClassPathResource("cetificate/LEX CONTABILIS CONTABILIDADE LTDA14664383000107.pfx");
@@ -89,9 +87,6 @@ public class PedidoConsultaFiscal extends IntegraContadorProvider implements SQS
             OkHttpClient client = buildClient(allCookies, keyEntryMain);
 
             HashMap<String, String> loginData = this.login(client);
-
-            int visibilityTimeout = 300;
-            SQSUtil.changeMessageVisibility(queueUrl, receiptHandle, visibilityTimeout);
 
             List<Map<String, Object>> errors = new ArrayList<>();
             List<Map<String, Object>> documents = (List<Map<String, Object>>) data.get("documents");
@@ -109,7 +104,7 @@ public class PedidoConsultaFiscal extends IntegraContadorProvider implements SQS
                             (String) data.get("certificateCode"),
                             (String) data.get("certificateName"),
                             document.get("companyCode").toString().replaceAll("[^0-9]", ""), keyEntry);
-                    String autenticarProcuradorToken = processResponse("autenticar_procurador_token", response);
+                    String autenticarProcuradorToken = (String) processResponse("autenticar_procurador_token", response);
                     if(Objects.isNull(autenticarProcuradorToken) || autenticarProcuradorToken.isEmpty()) {
                         throw new Exception("TODO");
                     }
@@ -118,19 +113,21 @@ public class PedidoConsultaFiscal extends IntegraContadorProvider implements SQS
                             (String) data.get("certificateCode"), (String) data.get("certificateName"),
                             document.get("companyCode").toString().replaceAll("[^0-9]", ""), "",
                             autenticarProcuradorToken, "SITFIS","SOLICITARPROTOCOLO91", "2.0");
-                    String protocoloRelatorio = processResponse("protocoloRelatorio", response);
+                    String protocoloRelatorio = (String) processResponse("protocoloRelatorio", response);
                     if(Objects.isNull(protocoloRelatorio) || protocoloRelatorio.isEmpty()) {
                         throw new Exception("TODO");
                     }
 
-                    Thread.sleep(4000);
+                    Integer tempoEspera = (Integer) processResponse("tempoEspera", response);
+                    tempoEspera = Objects.nonNull(tempoEspera) ? tempoEspera : 10000;
+                    Thread.sleep(tempoEspera);
 
                     String _data = "{ \"protocoloRelatorio\": \"" + protocoloRelatorio + "\" }";
                     response = this.buildRequisition(RequisitionType.Emitir, client, loginData.get("access_token"), loginData.get("jwt_token"),
                             (String) data.get("certificateCode"), (String) data.get("certificateName"),
                             document.get("companyCode").toString().replaceAll("[^0-9]", ""), _data,
                             autenticarProcuradorToken, "SITFIS","RELATORIOSITFIS92", "2.0");
-                    String pdf = processResponse("pdf", response);
+                    String pdf = (String) processResponse("pdf", response);
                     if(Objects.isNull(pdf) || pdf.isEmpty()) {
                         throw new Exception("TODO");
                     }
@@ -173,13 +170,11 @@ public class PedidoConsultaFiscal extends IntegraContadorProvider implements SQS
                     }
 
                     SQSUtil.status(document.get("id").toString(), key, (isSuccess ? "DONE" : "FOUND_ISSUE"), null, message.getId());
-                    acknowledgment.acknowledge();
 
                 } catch (MessageException exception) {
                     SQSUtil.status(document.get("id").toString(), "", "FAIL", exception.getMessage(), message.getId());
                 } catch (Exception exception) {
                     errors.add(document);
-                    //acknowledgment.acknowledge();
                     exception.printStackTrace();
                 } finally {
                     stopWatch.stop();

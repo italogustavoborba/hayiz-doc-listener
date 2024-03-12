@@ -189,7 +189,7 @@ public class IntegraContadorProvider extends Provider {
         return client.newCall(request).execute();
     }
 
-    protected static String processResponse(String key, final Response response) throws MessageException, IOException {
+    protected static Object processResponse(String key, final Response response) throws MessageException, IOException {
         HashMap<String, Object> hashMap = new HashMap();
         try {
             response.headers().toMultimap().forEach((k, values) -> {
@@ -217,14 +217,21 @@ public class IntegraContadorProvider extends Provider {
             }
         }
 
-        if(response.code() == 403) {
-            if(hashMap.containsKey("mensagens")) {
-                ArrayList mensagens = (ArrayList) hashMap.get("mensagens");
-                throw new MessageException(mensagens.toString());
+        if(hashMap.containsKey("status")) {
+            String status = hashMap.get("status").toString();
+            if(!Objects.equals("200.0", status)) {
+                if (hashMap.containsKey("mensagens")) {
+                    ArrayList mensagens = (ArrayList) hashMap.get("mensagens");
+                    throw new MessageException(mensagens.toString());
+                }
             }
         }
 
-        return (String) hashMap.get(key);
+        if(response.code() == 401) {
+            throw new IOException("Retry again");
+        }
+
+        return hashMap.containsKey(key) ? hashMap.get(key) : null;
     }
 
     protected OkHttpClient buildClient(Collection<Cookie> allCookies, KeyStore.PrivateKeyEntry keyEntry) throws Exception {
