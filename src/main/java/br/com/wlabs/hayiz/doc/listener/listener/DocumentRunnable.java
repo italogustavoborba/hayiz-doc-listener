@@ -25,8 +25,8 @@ import br.com.wlabs.hayiz.doc.listener.provider.city.pe.saocaetano.ExtratoDebito
 import br.com.wlabs.hayiz.doc.listener.provider.city.pe.saojosedacoroagrande.ExtratoDebitoSaoJoseDaCoroaGrande;
 import br.com.wlabs.hayiz.doc.listener.provider.city.pe.saolourenco.ExtratoDebitoSaoLourenco;
 import br.com.wlabs.hayiz.doc.listener.provider.city.pe.toritama.action.ExtratoDebitoToritama;
+import br.com.wlabs.hayiz.doc.listener.provider.integracontador.action.PedidoConsultaFiscal;
 import br.com.wlabs.hayiz.doc.listener.provider.receitafederal.action.ListarMensagem;
-import br.com.wlabs.hayiz.doc.listener.provider.receitafederal.action.PedidoConsultaFiscal;
 import br.com.wlabs.hayiz.doc.listener.provider.receitafederal.action.RelatorioDevedor;
 import br.com.wlabs.hayiz.doc.listener.provider.sefaz.pe.action.*;
 import br.com.wlabs.hayiz.doc.listener.util.SQSUtil;
