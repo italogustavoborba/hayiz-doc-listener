@@ -2,6 +2,7 @@ package br.com.wlabs.hayiz.doc.listener.provider;
 
 import br.com.wlabs.hayiz.doc.listener.exception.CaptchaException;
 import br.com.wlabs.hayiz.doc.listener.exception.CertificateException;
+import br.com.wlabs.hayiz.doc.listener.exception.TemporaryException;
 import br.com.wlabs.hayiz.doc.listener.util.*;
 import com.twocaptcha.TwoCaptcha;
 import com.twocaptcha.captcha.Captcha;
@@ -86,15 +87,18 @@ public abstract class Provider {
             do {
                 try {
                     response = chain.proceed(request);
-                    /*if (!response.isSuccessful()) {
-                        if(Objects.nonNull(response)) {
-                            response.close();
-                        }
-                        throw new IOException(LocalDateTime.now() + " Failed " + request.method() + "=>" + request.url() + "\n" +
-                                "Body: " + HTTPUtil.bodyToString(request) + "\n" +
-                                "-----------------------------------------------------------------------------");
-                    }*/
                     validateResponse(response);
+                } catch (TemporaryException e) {
+                    retriesCount++;
+                    try {
+                        Thread.sleep(RETRY_TIME);
+                    } catch (InterruptedException exception) {
+                        Thread.currentThread().interrupt();
+                    }
+                    if(Objects.nonNull(response)) {
+                        response.close();
+                    }
+                    response = null;
                 } catch (Exception e) {
                     if(e.getMessage().contains("Canceled") ||
                             e.getMessage().contains("Socket closed") || e.getMessage().contains("Connection reset")) {
@@ -413,5 +417,5 @@ public abstract class Provider {
         }
     }
 
-    protected abstract void validateResponse(Response response) throws Exception;
+    protected abstract void validateResponse(Response response) throws Exception, TemporaryException;
 }

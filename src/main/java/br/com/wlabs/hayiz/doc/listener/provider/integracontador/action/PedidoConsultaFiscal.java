@@ -25,9 +25,14 @@ import org.springframework.cloud.aws.messaging.listener.Acknowledgment;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.util.StopWatch;
 
+import javax.naming.ldap.LdapName;
+import javax.naming.ldap.Rdn;
 import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
+import java.security.cert.X509Certificate;
 import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -78,15 +83,33 @@ public class PedidoConsultaFiscal extends IntegraContadorProvider implements SQS
 
             ClassPathResource classPathResource =
                     new ClassPathResource("cetificate/LEX CONTABILIS CONTABILIDADE LTDA14664383000107.pfx");
-            KeyStore.PrivateKeyEntry keyEntryMain = CertificateUtil.buildCert(classPathResource.getInputStream(), "1234");
+            KeyStore.PrivateKeyEntry keyEntrySSL = CertificateUtil.buildCert(classPathResource.getInputStream(), "1234");
+
+            Set<Cookie> allCookies = Collections.synchronizedSet(new HashSet<>());
+            OkHttpClient client = buildClient(allCookies, keyEntrySSL);
+
+            HashMap<String, String> loginData = this.login(client);
 
             KeyStore.PrivateKeyEntry keyEntry = this.buildKeyEntry((String) data.get("certificateKey"),
                     (String) data.get("certificatePassword"));
+            X509Certificate x509Certificate = ((X509Certificate) keyEntry.getCertificate());
 
-            Set<Cookie> allCookies = Collections.synchronizedSet(new HashSet<>());
-            OkHttpClient client = buildClient(allCookies, keyEntryMain);
+            LdapName ldapName = new LdapName(x509Certificate.getSubjectDN().getName());
+            String certCN = ldapName.getRdns().stream()
+                    .filter(rdn -> rdn.getType().equalsIgnoreCase("CN"))
+                    .findFirst()
+                    .map(Rdn::getValue)
+                    .map(String::valueOf)
+                    .orElse(null);
+            String[] certNameArr = certCN.split(":");
+            if(certNameArr.length < 2) throw new CertificateException();
 
-            HashMap<String, String> loginData = this.login(client);
+            String certCode = certNameArr[1];
+            String certName = certCN;
+
+            String xmlSigned = this.xmlSigned(keyEntry, certCode, certName);
+            String encodedXmlSigned =
+                    java.util.Base64.getEncoder().encodeToString(xmlSigned.getBytes(StandardCharsets.UTF_8));
 
             List<Map<String, Object>> errors = new ArrayList<>();
             List<Map<String, Object>> documents = (List<Map<String, Object>>) data.get("documents");
@@ -95,24 +118,24 @@ public class PedidoConsultaFiscal extends IntegraContadorProvider implements SQS
                 try {
                     stopWatch.start();
 
+                    String companyCode = document.get("companyCode").toString().replaceAll("[^0-9]", "");
                     String key = data.get("workspaceCode").toString() + "/document/" +
                         document.get("companyCode").toString().replaceAll("[^0-9]", "") + "/" +
                         LocalDate.now().format(DateTimeFormatter.ofPattern("yyMM")) + "/situacao-fiscal-contribuinte-" +
                         UUID.randomUUID() + ".pdf";
 
-                    Response response = this.authentication(client, loginData.get("access_token"), loginData.get("jwt_token"),
-                            (String) data.get("certificateCode"),
-                            (String) data.get("certificateName"),
-                            document.get("companyCode").toString().replaceAll("[^0-9]", ""), keyEntry);
+                    String _data = "{\"xml\": \"" + encodedXmlSigned + "\"}";
+                    Response response = this.buildRequisition(RequisitionType.Apoiar, client, loginData.get("access_token"),
+                            loginData.get("jwt_token"), certCode, companyCode, _data, "",
+                            "AUTENTICAPROCURADOR","ENVIOXMLASSINADO81", "2.0");
                     String autenticarProcuradorToken = (String) processResponse("autenticar_procurador_token", response);
                     if(Objects.isNull(autenticarProcuradorToken) || autenticarProcuradorToken.isEmpty()) {
                         throw new Exception("TODO");
                     }
 
-                    response = this.buildRequisition(RequisitionType.Apoiar, client, loginData.get("access_token"), loginData.get("jwt_token"),
-                            (String) data.get("certificateCode"), (String) data.get("certificateName"),
-                            document.get("companyCode").toString().replaceAll("[^0-9]", ""), "",
-                            autenticarProcuradorToken, "SITFIS","SOLICITARPROTOCOLO91", "2.0");
+                    response = this.buildRequisition(RequisitionType.Apoiar, client, loginData.get("access_token"),
+                            loginData.get("jwt_token"), certCode, companyCode, "", autenticarProcuradorToken,
+                            "SITFIS", "SOLICITARPROTOCOLO91", "2.0");
                     String protocoloRelatorio = (String) processResponse("protocoloRelatorio", response);
                     if(Objects.isNull(protocoloRelatorio) || protocoloRelatorio.isEmpty()) {
                         throw new Exception("TODO");
@@ -122,11 +145,10 @@ public class PedidoConsultaFiscal extends IntegraContadorProvider implements SQS
                     tempoEspera = Objects.nonNull(tempoEspera) ? tempoEspera : 10000;
                     Thread.sleep(tempoEspera);
 
-                    String _data = "{ \"protocoloRelatorio\": \"" + protocoloRelatorio + "\" }";
+                    _data = "{ \"protocoloRelatorio\": \"" + protocoloRelatorio + "\" }";
                     response = this.buildRequisition(RequisitionType.Emitir, client, loginData.get("access_token"), loginData.get("jwt_token"),
-                            (String) data.get("certificateCode"), (String) data.get("certificateName"),
-                            document.get("companyCode").toString().replaceAll("[^0-9]", ""), _data,
-                            autenticarProcuradorToken, "SITFIS","RELATORIOSITFIS92", "2.0");
+                            certCode, companyCode, _data, autenticarProcuradorToken,
+                            "SITFIS","RELATORIOSITFIS92", "2.0");
                     String pdf = (String) processResponse("pdf", response);
                     if(Objects.isNull(pdf) || pdf.isEmpty()) {
                         throw new Exception("TODO");
@@ -188,11 +210,11 @@ public class PedidoConsultaFiscal extends IntegraContadorProvider implements SQS
 
             SQSUtil.resend(queueUrl, message, "documents", errors, messageGroupId);
             acknowledgment.acknowledge();
+        } catch (Exception | ExpiredException e) {
+            throw new Exception(e);
         } catch (CertificateException exception) {
             exception.printStackTrace();
             acknowledgment.acknowledge();
-        } catch (Exception | ExpiredException e) {
-            throw new Exception(e);
         }
     }
 }

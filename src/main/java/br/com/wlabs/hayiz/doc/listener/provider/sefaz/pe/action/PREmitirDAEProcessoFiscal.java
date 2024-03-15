@@ -234,6 +234,7 @@ public class PREmitirDAEProcessoFiscal extends SefazPernambucoProvider implement
             exception.printStackTrace();
             acknowledgment.acknowledge();
         } catch (Exception | ExpiredException e) {
+            e.printStackTrace();
             throw new Exception(e);
         } finally {
             if(Objects.nonNull(keepSession)) {

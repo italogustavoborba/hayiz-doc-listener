@@ -2,6 +2,7 @@ package br.com.wlabs.hayiz.doc.listener.provider.integracontador;
 
 import br.com.wlabs.hayiz.doc.listener.exception.CertificateException;
 import br.com.wlabs.hayiz.doc.listener.exception.MessageException;
+import br.com.wlabs.hayiz.doc.listener.exception.TemporaryException;
 import br.com.wlabs.hayiz.doc.listener.provider.Provider;
 import br.com.wlabs.hayiz.doc.listener.provider.integracontador.model.*;
 import br.com.wlabs.hayiz.doc.listener.util.HTTPUtil;
@@ -13,29 +14,33 @@ import com.itextpdf.layout.element.Link;
 import okhttp3.*;
 import okhttp3.logging.HttpLoggingInterceptor;
 import okhttp3.tls.HandshakeCertificates;
-import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.lang3.StringUtils;
 import org.w3c.dom.Document;
 
+import javax.naming.ldap.LdapName;
+import javax.naming.ldap.Rdn;
 import javax.xml.bind.JAXB;
 import javax.xml.bind.JAXBElement;
 import javax.xml.namespace.QName;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMResult;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import java.io.IOException;
 import java.io.StringWriter;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
+import java.security.cert.X509Certificate;
+import java.sql.Timestamp;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -60,9 +65,9 @@ public class IntegraContadorProvider extends Provider {
         return new Gson().fromJson(responseBody, HashMap.class);
     }
 
-    protected Response authentication(OkHttpClient client, String accessToken, String jwtToken, String accountantCode,
-                                      String accountantName, String companyCode, KeyStore.PrivateKeyEntry keyEntry)
-            throws Exception, CertificateException {
+    protected String xmlSigned(KeyStore.PrivateKeyEntry keyEntry, String certCode, String certName)
+            throws Exception {
+
         Dados dados = new Dados();
 
         Sistema sistema = new Sistema();
@@ -110,15 +115,11 @@ public class IntegraContadorProvider extends Provider {
         destinatario.setTipo("PJ");
         dados.setDestinatario(destinatario);
 
-        String tmp = accountantName.split(":")[1];
-
         AssinadoPor assinadoPor = new AssinadoPor();
-        assinadoPor.setNome(accountantName);
-        //assinadoPor.setNumero(accountantCode);
-        assinadoPor.setNumero(tmp);
+        assinadoPor.setNome(certName);
+        assinadoPor.setNumero(certCode);
         assinadoPor.setPapel("autor pedido de dados");
-        //assinadoPor.setTipo("PF");
-        assinadoPor.setTipo(tmp.length() > 11 ? "PJ" : "PF");
+        assinadoPor.setTipo(certCode.length() > 11 ? "PJ" : "PF");
         dados.setAssinadoPor(assinadoPor);
 
         TermoDeAutorizacao termoDeAutorizacao = new TermoDeAutorizacao();
@@ -136,18 +137,14 @@ public class IntegraContadorProvider extends Provider {
         Transformer transformer = tf.newTransformer();
         transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "no");
         transformer.setOutputProperty(OutputKeys.METHOD, "xml");
+        transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8");
 
         transformer.transform(new DOMSource(document), new StreamResult(sw));
-        String xmlSign = sw.toString();
-
-        String data = "{\"xml\": \"" + Base64.encodeBase64String(xmlSign.getBytes()) + "\"}";
-        return buildRequisition(RequisitionType.Apoiar, client, accessToken, jwtToken, accountantCode, accountantName, companyCode, data, "",
-                "AUTENTICAPROCURADOR","ENVIOXMLASSINADO81", "2.0");
+        return sw.toString();
     }
 
     protected Response buildRequisition(RequisitionType requisitionType,
-                                        OkHttpClient client, String accessToken, String jwtToken, String accountantCode,
-                                        String accountantName,
+                                        OkHttpClient client, String accessToken, String jwtToken, String certCode,
                                         String companyCode, String data, String autenticarProcuradorToken, String systemName,
                                         String serviceName, String version)
             throws Exception {
@@ -158,16 +155,14 @@ public class IntegraContadorProvider extends Provider {
         contratante.put("tipo", 2);
         requisition.put("contratante", contratante);
 
-        String tmp = accountantName.split(":")[1];
         HashMap<String, Object> autorPedidoDados = new HashMap<>();
-        //autorPedidoDados.put("numero", accountantCode);
-        autorPedidoDados.put("numero", tmp);
-        autorPedidoDados.put("tipo", (tmp.length() > 11 ? 2 : 1));
+        autorPedidoDados.put("numero", certCode);
+        autorPedidoDados.put("tipo", (certCode.length() > 11 ? 2 : 1));
         requisition.put("autorPedidoDados", autorPedidoDados);
 
         HashMap<String, Object> contribuinte = new HashMap<>();
         contribuinte.put("numero", companyCode);
-        contribuinte.put("tipo", 2);
+        contribuinte.put("tipo", (companyCode.length() > 11 ? 2 : 1));
         requisition.put("contribuinte", contribuinte);
 
         HashMap<String, Object> pedidoDados = new HashMap<>();
@@ -177,6 +172,12 @@ public class IntegraContadorProvider extends Provider {
         pedidoDados.put("dados", data);
         requisition.put("pedidoDados", pedidoDados);
 
+        String xRequestTag = (certCode.length() > 11 ? 2 : 1) + //Tipo do autor do pedido de dados (1-CPF ou 2-CNPJ)
+                StringUtils.leftPad(certCode, 14, "0") + // autor do pedido de dados (CNPJ 14 posições)
+                "2" + //Tipo do contribuinte (1-CPF ou 2-CNPJ)
+                StringUtils.leftPad(companyCode, 14, "0") + //contribuinte (CPF ou CNPJ 14 posições)
+                "00"; //Sequencial da Funcionalidade conforme Catálogo de Serviços, caso necessário, completados com zeros à esquerda no limite de 2 posições
+
         MediaType mediaType = MediaType.parse("application/json");
         RequestBody body = RequestBody.create(new Gson().toJson(requisition), mediaType);
         Request request = new Request.Builder()
@@ -185,6 +186,7 @@ public class IntegraContadorProvider extends Provider {
                 .addHeader("Authorization", "Bearer " + accessToken)
                 .addHeader("jwt_token", jwtToken)
                 .addHeader("autenticar_procurador_token", autenticarProcuradorToken)
+                .addHeader("X-Request-Tag", xRequestTag)
                 .build();
         return client.newCall(request).execute();
     }
@@ -259,7 +261,10 @@ public class IntegraContadorProvider extends Provider {
     }
 
     @Override
-    protected void validateResponse(Response response) throws Exception {
-
+    protected void validateResponse(Response response) throws Exception, TemporaryException {
+        if(response.code() == 202
+                || response.code() == 429
+                || response.code() == 503)
+            throw new TemporaryException("Waiting...");
     }
 }
