@@ -71,13 +71,13 @@ public class ExtratoDebitoCaruaru extends CaruaruPernambucoProvider implements S
             KeyStore.PrivateKeyEntry keyEntry = this.buildKeyEntry((String) data.get("certificateKey"),
                     (String) data.get("certificatePassword"));
 
-            int visibilityTimeout = 300;
+            int visibilityTimeout = 900;
             SQSUtil.changeMessageVisibility(queueUrl, receiptHandle, visibilityTimeout);
 
             List<Map<String, Object>> errors = new ArrayList<>();
             List<Map<String, Object>> documents = (List<Map<String, Object>>) data.get("documents");
             for(Map<String, Object> document: documents) {
-                StopWatch stopWatch = new StopWatch();
+                StopWatch stopWatch = new StopWatch(message.getId());
                 try {
                     stopWatch.start();
 
@@ -153,6 +153,12 @@ public class ExtratoDebitoCaruaru extends CaruaruPernambucoProvider implements S
                             "http://caruaru.tributosmunicipais.com.br");
                     fixDoc(doc, "http://caruaru.tributosmunicipais.com.br");
 
+                    Element messageWarnDetail = doc.selectFirst("span[class=ui-message-warn-detail]");
+                    if(Objects.nonNull(messageWarnDetail) && messageWarnDetail.hasText()) {
+                        SQSUtil.status(document.get("id").toString(), key, "UNDEFINED", messageWarnDetail.text(), message.getId());
+                        return;
+                    }
+
                     InputStream inputStream = IOUtils.toInputStream(doc.html(), mediaType.charset());
                     InputStream inputStreamPDF = PdfService.htmlToPdf(inputStream);
                     byte[] bytes = PdfService.signature(inputStreamPDF, keyEntry);
@@ -204,7 +210,7 @@ public class ExtratoDebitoCaruaru extends CaruaruPernambucoProvider implements S
                                                 .build();
                                         response = client.newCall(request).execute();
                                         mediaType = response.body().contentType();
-                                        if (!(mediaType.type().equalsIgnoreCase("application")
+                                        /*if (!(mediaType.type().equalsIgnoreCase("application")
                                                 && mediaType.subtype().equalsIgnoreCase("pdf"))) {
                                             doc = Jsoup.parse(response.body().byteStream(), mediaType.charset().name(),
                                                     "http://caruaru.tributosmunicipais.com.br");
@@ -213,34 +219,38 @@ public class ExtratoDebitoCaruaru extends CaruaruPernambucoProvider implements S
                                                 continue;
                                             }
                                             throw new Exception("Tente novamente.");
+                                        }*/
+
+                                        if((mediaType.type().equalsIgnoreCase("application")
+                                                && mediaType.subtype().equalsIgnoreCase("pdf"))) {
+
+                                            bytes = PdfService.signature(response.body().byteStream(), keyEntry);
+                                            StorageUtil.upload(invoiceKey, bytes, "application/pdf");
+
+                                            HashMap<String, Object> dataMessage = new HashMap<>();
+                                            dataMessage.put("key", row.attr("data-rk") + "/" + tds.get(3).text());
+                                            dataMessage.put("uf", message.getUf().name());
+                                            dataMessage.put("workspaceCode", data.get("workspaceCode"));
+                                            dataMessage.put("companyCode", document.get("companyCode").toString().replaceAll("[^0-9]", ""));
+                                            dataMessage.put("municipalCode", document.get("municipalCode").toString().replaceAll("[^0-9]", ""));
+                                            dataMessage.put("storageKey", invoiceKey);
+                                            dataMessage.put("type", "DAM");
+                                            dataMessage.put("message", tds.get(2).text());
+                                            dataMessage.put("dueDate", LocalDate.parse(tds.get(5).text(), DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                                                    .format(DateTimeFormatter.ISO_LOCAL_DATE));
+                                            dataMessage.put("price", tds.get(10).text()
+                                                    .replaceAll("[^0-9\\.\\,]", "")
+                                                    .replaceAll("\\.", "")
+                                                    .replaceAll("\\,", "\\."));
+
+                                            HashMap<String, Object> dataHeader = new HashMap<>();
+                                            dataHeader.put("id", UUID.randomUUID().toString());
+                                            dataHeader.put("action", "Invoice");
+                                            dataHeader.put("date", LocalDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME));
+                                            dataHeader.put("data", dataMessage);
+
+                                            SQSUtil.sendMessage(dataHeader, message.getId());
                                         }
-
-                                        bytes = PdfService.signature(response.body().byteStream(), keyEntry);
-                                        StorageUtil.upload(invoiceKey, bytes, "application/pdf");
-
-                                        HashMap<String, Object> dataMessage = new HashMap<>();
-                                        dataMessage.put("key", row.attr("data-rk") + "/" + tds.get(3).text());
-                                        dataMessage.put("uf", message.getUf().name());
-                                        dataMessage.put("workspaceCode", data.get("workspaceCode"));
-                                        dataMessage.put("companyCode", document.get("companyCode").toString().replaceAll("[^0-9]", ""));
-                                        dataMessage.put("municipalCode", document.get("municipalCode").toString().replaceAll("[^0-9]", ""));
-                                        dataMessage.put("storageKey", invoiceKey);
-                                        dataMessage.put("type", "DAM");
-                                        dataMessage.put("message", tds.get(2).text());
-                                        dataMessage.put("dueDate", LocalDate.parse(tds.get(5).text(), DateTimeFormatter.ofPattern("dd/MM/yyyy"))
-                                                .format(DateTimeFormatter.ISO_LOCAL_DATE));
-                                        dataMessage.put("price", tds.get(10).text()
-                                                .replaceAll("[^0-9\\.\\,]", "")
-                                                .replaceAll("\\.", "")
-                                                .replaceAll("\\,", "\\."));
-
-                                        HashMap<String, Object> dataHeader = new HashMap<>();
-                                        dataHeader.put("id", UUID.randomUUID().toString());
-                                        dataHeader.put("action", "Invoice");
-                                        dataHeader.put("date", LocalDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME));
-                                        dataHeader.put("data", dataMessage);
-
-                                        SQSUtil.sendMessage(dataHeader, message.getId());
                                     } catch (Exception exception) {
                                         exception.printStackTrace();
                                     }
@@ -256,7 +266,7 @@ public class ExtratoDebitoCaruaru extends CaruaruPernambucoProvider implements S
                     exception.printStackTrace();
                 } finally {
                     stopWatch.stop();
-                    long seconds = (stopWatch.getTotalTimeMillis() / 1000);
+                    long seconds = (stopWatch.getLastTaskTimeMillis() / 1000);
                     if(seconds >= visibilityTimeout) {
                         throw new ExpiredException("Message expired: " + message);
                     }

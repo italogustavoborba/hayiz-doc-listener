@@ -158,6 +158,12 @@ public class ExtratoDebitoRecife extends RecifePernambucoProvider implements SQS
                         throw new Exception("O código de verificação informado está incorreto.");
                     }
 
+                    if(Objects.nonNull(lblMensagem)
+                            && lblMensagem.text().indexOf("invalid csrf") != -1) {
+                        //capmonster.report(imageToTextTask.getTaskId(), false);
+                        throw new Exception(lblMensagem.text());
+                    }
+
                     if(Objects.nonNull(lblMensagem) && lblMensagem.text().length() > 0) {
                         SQSUtil.status(document.get("id").toString(), key, "FAIL", lblMensagem.text(), message.getId());
                         //capmonster.report(imageToTextTask.getTaskId(), true);

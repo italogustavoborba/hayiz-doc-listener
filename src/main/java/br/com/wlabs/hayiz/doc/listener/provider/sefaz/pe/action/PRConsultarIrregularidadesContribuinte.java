@@ -147,7 +147,7 @@ public class PRConsultarIrregularidadesContribuinte extends SefazPernambucoProvi
                         continue;
                     }
 
-                    Element content = null;
+                    Element content = doc;
                     for (Element el :chavesPrimariaElement) {
                         String chavePrimaria = el.attr("value");
                         formData.put("chave_primaria", chavePrimaria);
@@ -185,11 +185,32 @@ public class PRConsultarIrregularidadesContribuinte extends SefazPernambucoProvi
                                 formData.put("evento", "processarFiltroConsulta");
                                 url = "/sfi_trb_def/PRConsultarICMSAberto?evento=processarFiltroConsulta";
                                 break;
+                            case "869":
+                                formData.put("evento", "processarFiltroConsulta");
+                                url = "/sfi_trb_def/PRConsultarPosicaoDocumentos?evento=processarFiltroConsulta";
+                                break;
+                            case "891":
+                                formData.put("evento", "processarFiltroConsulta");
+                                url = "/sfi_trb_def/PRConsultarControlePagamentoSn?evento=processarFiltroConsulta";
+                                break;
+
                             case "868":
                                 formData.put("NuDocumento", nuDocumento);
                                 formData.put("TpDocumento", tpDocumento);
                                 formData.put("evento", "exibirFiltroConsultaOrigemGCC");
                                 url = "/sfi_trb_gcd/PRConsultarProcessoICDIrregular?evento=exibirFiltroConsultaOrigemGCC";
+                                break;
+                            case "890":
+                                formData.put("NuDocumento", nuDocumento);
+                                formData.put("TpDocumento", tpDocumento);
+                                formData.put("evento", "processarFiltroConsulta");
+                                url = "/sfi_trb_def/PRConsultarPosicaoDocumentos?evento=processarFiltroConsulta";
+                                break;
+                            case "889":
+                                formData.put("NuDocumento", nuDocumento);
+                                formData.put("TpDocumento", tpDocumento);
+                                formData.put("evento", "processarFiltroConsulta");
+                                url = "/sfi_trb_def/PRConsultarPosicaoDocumentos?evento=processarFiltroConsulta";
                                 break;
                             case "12":
                                 formData.put("NuInscricaoEstadualContribuinte", nuInscricaoEstadual);
@@ -235,6 +256,8 @@ public class PRConsultarIrregularidadesContribuinte extends SefazPernambucoProvi
                                 formData.put("evento", "exibirFiltroConsulta");
                                 url = "/sfi_trb_gaf/PRConsultarDemandaAcaoFiscal?evento=exibirFiltroConsulta";
                                 break;
+                            default:
+                                continue;
                         }
 
                         request = new Request.Builder()
@@ -246,10 +269,7 @@ public class PRConsultarIrregularidadesContribuinte extends SefazPernambucoProvi
                         mediaType = response.body().contentType();
                         doc = Jsoup.parse(response.body().byteStream(), mediaType.charset().name(),
                                 "https://efisco.sefaz.pe.gov.br/sfi/");
-
-                        if(content == null) {
-                            content = doc;
-                        } else {
+                        if(Objects.nonNull(doc)) {
                             content.selectFirst("body")
                                     .appendChild(doc.selectFirst("form"));
                         }

@@ -69,10 +69,12 @@ public class PedidoConsultaFiscal extends ReceitaFederalProvider implements SQSA
             if(Objects.nonNull(message.getDate()) && !message.getDate().isEmpty()) {
                 if(LocalDate.parse(message.getDate()).isBefore(localDate)) {
                     List<Map<String, Object>> documents = (List<Map<String, Object>>) data.get("documents");
-                    for(Map<String, Object> document: documents) {
-                        SQSUtil.status(document.get("id").toString(), null, "FAIL",
-                                "Não foi possível obter os dados: Sistema da Receita Federal indisponível.",
-                                message.getId());
+                    if(Objects.nonNull(documents)) {
+                        for (Map<String, Object> document : documents) {
+                            SQSUtil.status(document.get("id").toString(), null, "FAIL",
+                                    "Não foi possível obter os dados: Sistema da Receita Federal indisponível.",
+                                    message.getId());
+                        }
                     }
                     acknowledgment.acknowledge();
                     return;
@@ -158,6 +160,8 @@ public class PedidoConsultaFiscal extends ReceitaFederalProvider implements SQSA
                     PdfReader pdfReader = new PdfReader(byteArrayInputStream);
                     PdfDocument pdfDocument = new PdfDocument(pdfReader);
                     Pattern pattern = Pattern.compile("(.+SIEF.+)|" +
+                            "(.+ECF.+)|" +
+                            "(.+DCTF.+)|" +
                             "(.+SICOB.+)|" +
                             "(.+SIDA.+)|" +
                             "(.+SISPAR.+)|" +
@@ -174,7 +178,8 @@ public class PedidoConsultaFiscal extends ReceitaFederalProvider implements SQSA
                         while (matcher.find()) {
                             String content = Normalizer.normalize(matcher.group(), Normalizer.Form.NFD)
                                     .replaceAll("\\p{InCombiningDiacriticalMarks}+", "");
-                            if((content.toLowerCase().contains("debito") || content.toLowerCase().contains("pendencia"))
+                            if((content.toLowerCase().contains("debito") || content.toLowerCase().contains("pendencia")
+                                    || content.toLowerCase().contains("omissao"))
                                     && !content.toLowerCase().contains("exigibilidade suspensa")) {
                                 isSuccess = false;
                                 break;

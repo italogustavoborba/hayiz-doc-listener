@@ -224,6 +224,9 @@ public class IntegraContadorProvider extends Provider {
             if(!Objects.equals("200.0", status)) {
                 if (hashMap.containsKey("mensagens")) {
                     ArrayList mensagens = (ArrayList) hashMap.get("mensagens");
+                    if(mensagens.toString().toLowerCase().indexOf("erro ao processar") != -1){
+                        throw new IOException("Retry again");
+                    }
                     throw new MessageException(mensagens.toString());
                 }
             }

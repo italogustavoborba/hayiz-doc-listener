@@ -23,12 +23,12 @@ public final class StorageUtil {
         AWSCredentials credentials = new AWSCredentials() {
             @Override
             public String getAWSAccessKeyId() {
-                return System.getProperty("aws-access-key", "AKIARAH5OV3UATBBDYF2");
+                return System.getProperty("aws-access-key", "AKIARAH5OV3UBKTVWIDF");
             }
 
             @Override
             public String getAWSSecretKey() {
-                return System.getProperty("aws-secret-key", "stOPrnHntsdBRWuGX0RzuCOKNHGhV1CNbtsUOllg");
+                return System.getProperty("aws-secret-key", "v98Zysz7+g/xTFwRqUcmm2UYT0kMIjsV4qO8fDGU");
             }
         };
         AWSCredentialsProvider credentialsProvider = new AWSStaticCredentialsProvider(credentials);

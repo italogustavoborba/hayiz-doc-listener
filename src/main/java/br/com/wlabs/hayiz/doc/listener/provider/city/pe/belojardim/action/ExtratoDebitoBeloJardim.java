@@ -141,7 +141,7 @@ public class ExtratoDebitoBeloJardim extends BeloJardimPernambucoProvider implem
                     captcha.setBase64(base64);
                     captcha.setMinLen(5);
                     captcha.setMaxLen(5);
-                    captcha.setLang("pt");
+                    //captcha.setLang("pt");
 
                     this.solveCaptcha(captcha);
 

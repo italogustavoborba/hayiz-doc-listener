@@ -14,6 +14,9 @@ import org.jsoup.select.Elements;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 import java.net.MalformedURLException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
@@ -30,6 +33,26 @@ public class RecifePernambucoProvider extends Provider {
         HttpLoggingInterceptor logging = new HttpLoggingInterceptor();
         logging.setLevel(HttpLoggingInterceptor.Level.BODY);
 
+        TrustManager[] trustAllCerts = new TrustManager[]{
+                new X509TrustManager() {
+                    @Override
+                    public void checkClientTrusted(java.security.cert.X509Certificate[] chain, String authType) {
+                    }
+
+                    @Override
+                    public void checkServerTrusted(java.security.cert.X509Certificate[] chain, String authType) {
+                    }
+
+                    @Override
+                    public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+                        return new java.security.cert.X509Certificate[]{};
+                    }
+                }
+        };
+
+        SSLContext sslContext = SSLContext.getInstance("SSL");
+        sslContext.init(null, trustAllCerts, new java.security.SecureRandom());
+
         return new OkHttpClient().newBuilder()
                 .readTimeout(60, TimeUnit.SECONDS)
                 .connectTimeout(60 / 2, TimeUnit.SECONDS)
@@ -42,6 +65,8 @@ public class RecifePernambucoProvider extends Provider {
                 .addInterceptor(this.defaultInterceptor())
                 .addInterceptor(this.retryInterceptor())
                 .cookieJar(cookieJar((allCookies)))
+                .sslSocketFactory(sslContext.getSocketFactory(), (X509TrustManager) trustAllCerts[0])
+                .hostnameVerifier((hostname, session) -> true)
                 .build();
     }
 

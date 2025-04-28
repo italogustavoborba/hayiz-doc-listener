@@ -57,10 +57,12 @@ public class PREmitirDAEProcessoFiscal extends SefazPernambucoProvider implement
             if(Objects.nonNull(message.getDate()) && !message.getDate().isEmpty()) {
                 if(LocalDate.parse(message.getDate()).isBefore(localDate)) {
                     List<Map<String, Object>> documents = (List<Map<String, Object>>) data.get("documents");
-                    for(Map<String, Object> document: documents) {
-                        SQSUtil.status(document.get("id").toString(), null, "FAIL",
-                                "Não foi possível obter os dados: Sistema indisponível.",
-                                message.getId());
+                    if(Objects.nonNull(documents)) {
+                        for (Map<String, Object> document : documents) {
+                            SQSUtil.status(document.get("id").toString(), null, "FAIL",
+                                    "Não foi possível obter os dados: Sistema indisponível.",
+                                    message.getId());
+                        }
                     }
                     acknowledgment.acknowledge();
                     return;

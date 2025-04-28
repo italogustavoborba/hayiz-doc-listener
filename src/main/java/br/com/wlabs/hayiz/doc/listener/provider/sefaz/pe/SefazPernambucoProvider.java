@@ -84,7 +84,7 @@ public class SefazPernambucoProvider extends Provider {
 
     protected Map<String, String> login(OkHttpClient httpClient, String cpf) throws Exception {
         MediaType mediaType = MediaType.parse("application/x-www-form-urlencoded");
-        RequestBody body = RequestBody.create("evento=processarLogin"
+        RequestBody body = RequestBody.create("evento=tratarLoginCertificado"
                         + "&Login=" + cpf.replaceAll("(\\d{2})(\\d{3})(\\d{3})(\\d{4})(\\d{2})", "$1.$2.$3-$4"),
                 mediaType);
         Request request = new Request.Builder()
@@ -94,6 +94,7 @@ public class SefazPernambucoProvider extends Provider {
                 .build();
         try (Response response = httpClient.newCall(request).execute()) {
             mediaType = response.body().contentType();
+            //String responseBody = HTTPUtil.bodyToString(response, response.body().contentType().charset());
             Document doc = Jsoup.parse(response.body().byteStream(), mediaType.charset().name(),
                     "https://efisco.sefaz.pe.gov.br/sfi/");
             Map<String, String> formData = HTMLUtil.formElementToMap((FormElement) doc.selectFirst("form[name=frm_principal]"));
@@ -207,15 +208,15 @@ public class SefazPernambucoProvider extends Provider {
         Element head = content.root().selectFirst("head");
         head.empty();
 
-        String[] css = new String[]{"http://assets.hayizsis.com.br/efisco.sefaz.pe.gov.br/css/sefaz_pe.css",
-                "http://assets.hayizsis.com.br/efisco.sefaz.pe.gov.br/css/swiper-bundle.min.css",
-                "http://assets.hayizsis.com.br/efisco.sefaz.pe.gov.br/css/sefaz_pe_variaveis.css",
-                "http://assets.hayizsis.com.br/efisco.sefaz.pe.gov.br/css/sefaz_pe_sidebar.css",
-                "http://assets.hayizsis.com.br/efisco.sefaz.pe.gov.br/css/sefaz_pe_tema.css",
-                "http://assets.hayizsis.com.br/efisco.sefaz.pe.gov.br/css/jquery-ui.min.css",
-                "http://assets.hayizsis.com.br/efisco.sefaz.pe.gov.br/css/sefaz_pe_interface_rica.css",
-                "http://assets.hayizsis.com.br/efisco.sefaz.pe.gov.br/css/bootstrap.min.css",
-                "http://assets.hayizsis.com.br/efisco.sefaz.pe.gov.br/css/all.min.css"};
+        String[] css = new String[]{"https://hayiz-doc-assets.s3.sa-east-1.amazonaws.com/efisco.sefaz.pe.gov.br/css/sefaz_pe.css",
+                "https://hayiz-doc-assets.s3.sa-east-1.amazonaws.com/efisco.sefaz.pe.gov.br/css/swiper-bundle.min.css",
+                "https://hayiz-doc-assets.s3.sa-east-1.amazonaws.com/efisco.sefaz.pe.gov.br/css/sefaz_pe_variaveis.css",
+                "https://hayiz-doc-assets.s3.sa-east-1.amazonaws.com/efisco.sefaz.pe.gov.br/css/sefaz_pe_sidebar.css",
+                "https://hayiz-doc-assets.s3.sa-east-1.amazonaws.com/efisco.sefaz.pe.gov.br/css/sefaz_pe_tema.css",
+                "https://hayiz-doc-assets.s3.sa-east-1.amazonaws.com/efisco.sefaz.pe.gov.br/css/jquery-ui.min.css",
+                "https://hayiz-doc-assets.s3.sa-east-1.amazonaws.com/efisco.sefaz.pe.gov.br/css/sefaz_pe_interface_rica.css",
+                "https://hayiz-doc-assets.s3.sa-east-1.amazonaws.com/efisco.sefaz.pe.gov.br/css/bootstrap.min.css",
+                "https://hayiz-doc-assets.s3.sa-east-1.amazonaws.com/efisco.sefaz.pe.gov.br/css/all.min.css"};
 
         Arrays.stream(css).forEach(url -> {
             head.appendElement("link")
@@ -228,7 +229,7 @@ public class SefazPernambucoProvider extends Provider {
         images.forEach(image -> {
             String src = image.attr("src");
             String name = FilenameUtils.getName(src);
-            image.attr("src", "http://assets.hayizsis.com.br/efisco.sefaz.pe.gov.br/images/" + name);
+            image.attr("src", "https://hayiz-doc-assets.s3.sa-east-1.amazonaws.com/efisco.sefaz.pe.gov.br/images/" + name);
         });
 
         //Elements inputs = content.root().select("input[type=HIDDEN]");
