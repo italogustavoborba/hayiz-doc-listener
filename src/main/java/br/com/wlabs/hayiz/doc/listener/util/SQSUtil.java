@@ -31,12 +31,12 @@ public final class SQSUtil {
         AWSCredentials credentials = new AWSCredentials() {
             @Override
             public String getAWSAccessKeyId() {
-                return System.getProperty("aws-access-key", "AKIARAH5OV3UBKTVWIDF");
+                return System.getProperty("aws-access-key", "");
             }
 
             @Override
             public String getAWSSecretKey() {
-                return System.getProperty("aws-secret-key", "v98Zysz7+g/xTFwRqUcmm2UYT0kMIjsV4qO8fDGU");
+                return System.getProperty("aws-secret-key", "");
             }
         };
         AWSCredentialsProvider credentialsProvider = new AWSStaticCredentialsProvider(credentials);
